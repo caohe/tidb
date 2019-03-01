@@ -16,12 +16,18 @@ package executor_test
 import (
 	"context"
 	"fmt"
+	"path"
+	"testing"
+	"time"
 
+	"github.com/coreos/etcd/integration"
 	. "github.com/pingcap/check"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/auth"
 	"github.com/pingcap/parser/model"
 	"github.com/pingcap/parser/mysql"
+	"github.com/pingcap/tidb-tools/pkg/etcd"
+	"github.com/pingcap/tidb-tools/tidb-binlog/node"
 	"github.com/pingcap/tidb/domain"
 	"github.com/pingcap/tidb/executor"
 	plannercore "github.com/pingcap/tidb/planner/core"
@@ -403,4 +409,30 @@ func (s *testSuite2) TestShowEscape(c *C) {
 
 	tk.MustExec("rename table \"t`abl\"\"e\" to t")
 	tk.MustExec("set sql_mode=@old_sql_mode")
+}
+
+func (s *testSuite2) TestShowPumpOrDrainerStatus(c *C) {
+	var t *testing.T
+	testEtcdCluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
+
+	etcdclient := etcd.NewClient(testEtcdCluster.RandClient(), node.DefaultRootPath)
+	r := node.NewEtcdRegistry(etcdclient, time.Duration(5)*time.Second)
+	defer func() {
+		testEtcdCluster.Terminate(t)
+		r.Close()
+	}()
+
+	ns := &node.Status{
+		NodeID:  "pump1",
+		Addr:    "127.0.0.1:8249",
+		State:   node.Online,
+		IsAlive: true,
+	}
+	nodePrefix := path.Join(node.DefaultRootPath, node.NodePrefix[node.PumpNode])
+	err := r.UpdateNode(context.Background(), nodePrefix, ns)
+	c.Assert(err, IsNil)
+
+	tk := testkit.NewTestKit(c, s.store)
+	result := tk.MustQuery("SHOW PUMP STATUS")
+	c.Check(result.Rows(), HasLen, 0)
 }

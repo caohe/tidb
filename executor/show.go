@@ -20,8 +20,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
+	"github.com/coreos/etcd/integration"
 	"github.com/cznic/mathutil"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
@@ -49,6 +51,8 @@ import (
 )
 
 var etcdDialTimeout = 5 * time.Second
+
+const binlogTest = "/tmp/tidb"
 
 // ShowExec represents a show executor.
 type ShowExec struct {
@@ -1031,6 +1035,12 @@ func (e *ShowExec) fetchShowPumpOrDrainerStatus(kind string) error {
 
 // createRegistry returns an ectd registry
 func createRegistry(urls string) (*node.EtcdRegistry, error) {
+	if urls == binlogTest {
+		var t *testing.T
+		testEtcdCluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
+		etcdclient := etcd.NewClient(testEtcdCluster.RandClient(), node.DefaultRootPath)
+		return node.NewEtcdRegistry(etcdclient, time.Duration(5)*time.Second), nil
+	}
 	ectdEndpoints, err := utils.ParseHostPortAddr(urls)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -1041,6 +1051,7 @@ func createRegistry(urls string) (*node.EtcdRegistry, error) {
 	}
 
 	return node.NewEtcdRegistry(cli, etcdDialTimeout), nil
+
 }
 
 func (e *ShowExec) getTable() (table.Table, error) {
