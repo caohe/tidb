@@ -413,12 +413,11 @@ func (s *testSuite2) TestShowEscape(c *C) {
 
 func (s *testSuite2) TestShowPumpOrDrainerStatus(c *C) {
 	var t *testing.T
-	testEtcdCluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
+	executor.TestEtcdCluster = integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
 
-	etcdclient := etcd.NewClient(testEtcdCluster.RandClient(), node.DefaultRootPath)
+	etcdclient := etcd.NewClient(executor.TestEtcdCluster.RandClient(), node.DefaultRootPath)
 	r := node.NewEtcdRegistry(etcdclient, time.Duration(5)*time.Second)
 	defer func() {
-		testEtcdCluster.Terminate(t)
 		r.Close()
 	}()
 
@@ -433,6 +432,5 @@ func (s *testSuite2) TestShowPumpOrDrainerStatus(c *C) {
 	c.Assert(err, IsNil)
 
 	tk := testkit.NewTestKit(c, s.store)
-	result := tk.MustQuery("SHOW PUMP STATUS")
-	c.Check(result.Rows(), HasLen, 0)
+	tk.MustQuery("SHOW PUMP STATUS").Check([][]interface{}{{"pump1", "127.0.0.1:8249", "online", "0", "1970-01-01 08:00:00"}})
 }

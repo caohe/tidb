@@ -20,7 +20,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/coreos/etcd/integration"
@@ -50,6 +49,8 @@ import (
 	"github.com/pingcap/tidb/util/sqlexec"
 )
 
+// TestEtcdCluster is a mock etcd cluster used for test `show pump/drainer status`
+var TestEtcdCluster *integration.ClusterV3
 var etcdDialTimeout = 5 * time.Second
 
 const binlogTest = "/tmp/tidb"
@@ -1036,9 +1037,7 @@ func (e *ShowExec) fetchShowPumpOrDrainerStatus(kind string) error {
 // createRegistry returns an ectd registry
 func createRegistry(urls string) (*node.EtcdRegistry, error) {
 	if urls == binlogTest {
-		var t *testing.T
-		testEtcdCluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
-		etcdclient := etcd.NewClient(testEtcdCluster.RandClient(), node.DefaultRootPath)
+		etcdclient := etcd.NewClient(TestEtcdCluster.RandClient(), node.DefaultRootPath)
 		return node.NewEtcdRegistry(etcdclient, time.Duration(5)*time.Second), nil
 	}
 	ectdEndpoints, err := utils.ParseHostPortAddr(urls)
